@@ -29,6 +29,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 include(FetchContent)
 set(PROTOCOL_ENABLE_FORMATTING ON CACHE BOOL "Enable formatting support in Protocol")
+set(PROTOCOL_ENABLE_DETAIL_ERRORS ON CACHE BOOL "Enable detail errors in Protocol")
 FetchContent_Declare(
 	Protocol
 	GIT_REPOSITORY https://github.com/SculkCatalystMC/Protocol.git

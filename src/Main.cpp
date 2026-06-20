@@ -21,8 +21,6 @@
 #include <windows.h>
 #endif
 
-#include <print>
-
 int main() {
     struct LoggerWaitGuard {
         ~LoggerWaitGuard() { sculk::Logger::wait(); }

@@ -39,15 +39,27 @@ bool ProxyPass::start() {
     }
     mProxyServerKeyPair = *serverKeyPair;
 
-    mProxyServer.setOnDisconnected([this](const RakNet::RakNetGUID& guid, const RakNet::SystemAddress&) noexcept {
+    (void)mProxyServer.setOnDisconnected([this](const RakNet::RakNetGUID& guid, const RakNet::SystemAddress&) noexcept {
         onClientDisconnected(guid);
     });
 
-    mProxyServer.setOnPacketReceive([this](
-                                        const RakNet::RakNetGUID&            guid,
-                                        const RakNet::SystemAddress&         address,
-                                        std::unique_ptr<protocol::IPacket>&& packet
-                                    ) noexcept { onRealClientPacket(guid, address, *packet); });
+    (void)mProxyServer.setOnPacketReceive([this](
+                                              const RakNet::RakNetGUID&            guid,
+                                              const RakNet::SystemAddress&         address,
+                                              std::unique_ptr<protocol::IPacket>&& packet
+                                          ) noexcept { onRealClientPacket(guid, address, *packet); });
+
+    if (mSettings.packets_logger->log_parse_error) {
+        (void)mProxyServer.setOnPacketParseFailed([this](
+                                                      const RakNet::RakNetGUID&,
+                                                      const RakNet::SystemAddress&,
+                                                      protocol::Session::Buffer&&,
+                                                      std::string message
+                                                  ) noexcept {
+            Logger("ProxyPass").error("Failed to parse packet from {}", message);
+        });
+    }
+
     mProxyServer.setMotd(mSettings.motd);
     return mProxyServer.start(mSettings.proxy_port, mSettings.proxy_port_v6, mSettings.max_players);
 }
@@ -76,7 +88,7 @@ void ProxyPass::disconnectClient(
     protocol::DisconnectPacket disconnectPacket{};
     disconnectPacket.mReason  = reason;
     disconnectPacket.mMessage = message;
-    if (auto session = mProxyServer.getSession(guid)) {
+    if (auto session = mProxyServer.getSession(guid).lock()) {
         protocol::Session::Buffer buffer{};
         protocol::BinaryStream    stream{buffer};
         disconnectPacket.writeWithHeader(stream);
@@ -168,10 +180,7 @@ void ProxyPass::handleClient(protocol::Session& session, const protocol::Request
         Logger("ProxyPass").info("Proxy => Client | {}", settingsPacket);
     }
     session.sendPacketImmediately(std::move(buffer));
-    session.setCompressed(
-        static_cast<protocol::Session::CompressionType>(settingsPacket.mCompressionAlgorithm),
-        settingsPacket.mCompressionThreshold
-    );
+    session.setCompressed(settingsPacket.mCompressionAlgorithm, settingsPacket.mCompressionThreshold);
 }
 
 void ProxyPass::handleClient(ProxyBridge& bridge, const protocol::LoginPacket& packet) {
@@ -263,7 +272,8 @@ void ProxyPass::handleFirstClientPacket(
 
     std::weak_ptr<ProxyBridge> weakBridge = bridge;
 
-    bridge->mProxyClient.setOnPacketReceive([this, weakBridge](std::unique_ptr<protocol::IPacket>&& packet) noexcept {
+    (void)bridge->mProxyClient.setOnPacketReceive([this,
+                                                   weakBridge](std::unique_ptr<protocol::IPacket>&& packet) noexcept {
         auto currentBridge = weakBridge.lock();
         if (!currentBridge) {
             return;
@@ -271,7 +281,15 @@ void ProxyPass::handleFirstClientPacket(
         processServerPacket(*currentBridge, *packet);
     });
 
-    bridge->mProxyClient.setOnConnected([this, weakBridge]() noexcept {
+    if (mSettings.packets_logger->log_parse_error) {
+        (void)bridge->mProxyClient.setOnPacketParseFailed(
+            [this](protocol::Session::Buffer&&, std::string message) noexcept {
+                Logger("ProxyPass").error("Failed to parse packet: {}", message);
+            }
+        );
+    }
+
+    (void)bridge->mProxyClient.setOnConnected([this, weakBridge]() noexcept {
         auto currentBridge = weakBridge.lock();
         if (!currentBridge) {
             return;
@@ -290,7 +308,7 @@ void ProxyPass::handleFirstClientPacket(
         currentBridge->mClientReady.store(true, std::memory_order_release);
     });
 
-    bridge->mProxyClient.setOnConnectionFailed([this, weakBridge]() noexcept {
+    (void)bridge->mProxyClient.setOnConnectionFailed([this, weakBridge]() noexcept {
         auto currentBridge = weakBridge.lock();
         if (!currentBridge) {
             return;
@@ -337,7 +355,7 @@ void ProxyPass::onRealClientPacket(
     const RakNet::SystemAddress& address,
     const protocol::IPacket&     packet
 ) {
-    auto session = mProxyServer.getSession(guid);
+    auto session = mProxyServer.getSession(guid).lock();
     if (!session) {
         return;
     }
@@ -375,11 +393,7 @@ void ProxyPass::handleServer(ProxyBridge& bridge, const protocol::NetworkSetting
     if (PROXY_PASS_SHOULD_LOG_PACKET(protocol::MinecraftPacketIds::NetworkSettings)) {
         Logger("ProxyPass").info("Server => Proxy | {}", packet);
     }
-    bridge.mProxyClient.getSession().setCompressed(
-        static_cast<protocol::Session::CompressionType>(packet.mCompressionAlgorithm),
-        packet.mCompressionThreshold
-    );
-
+    bridge.mProxyClient.getSession().setCompressed(packet.mCompressionAlgorithm, packet.mCompressionThreshold);
     (void)bridge.mConnectionRequest.selfSign(mProxyServerKeyPair);
     protocol::LoginPacket loginPacket{bridge.mConnectionRequest.toString()};
 
