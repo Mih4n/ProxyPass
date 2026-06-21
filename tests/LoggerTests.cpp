@@ -3,10 +3,12 @@
 #include <array>
 #include <chrono>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <ranges>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -16,8 +18,8 @@ using namespace std::chrono_literals;
 namespace fs = std::filesystem;
 
 std::vector<std::string> readLines(const fs::path& path) {
-    std::ifstream             file{path};
-    std::vector<std::string>  lines{};
+    std::ifstream            file{path};
+    std::vector<std::string> lines{};
     for (std::string line{}; std::getline(file, line);) {
         lines.push_back(std::move(line));
     }
@@ -63,10 +65,10 @@ std::size_t countExact(const std::vector<std::string>& lines, std::string_view n
 }
 
 bool waitForStableLineCount(
-    const fs::path&                 path,
-    std::size_t                     expectedCount,
-    std::chrono::milliseconds       timeout = 5000ms,
-    std::chrono::milliseconds       stableFor = 100ms
+    const fs::path&           path,
+    std::size_t               expectedCount,
+    std::chrono::milliseconds timeout   = 5000ms,
+    std::chrono::milliseconds stableFor = 100ms
 ) {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     auto       stableAt = std::chrono::steady_clock::time_point{};
@@ -89,28 +91,19 @@ bool waitForStableLineCount(
 }
 
 bool hasCompletePrefix(const std::string& line) {
-    return line.contains("[Info] [ProxyPass]")
-        || line.contains("[Warn] [ProxyPass]")
-        || line.contains("[Error] [ProxyPass]")
-        || line.contains("[Trace] [ProxyPass]")
-        || line.contains("[Debug] [ProxyPass]")
-        || line.contains("[Fatal] [ProxyPass]");
+    return line.contains("[Info] [ProxyPass]") || line.contains("[Warn] [ProxyPass]")
+        || line.contains("[Error] [ProxyPass]") || line.contains("[Trace] [ProxyPass]")
+        || line.contains("[Debug] [ProxyPass]") || line.contains("[Fatal] [ProxyPass]");
 }
 
-void resetLogger() {
-    sculk::Logger::setFile({});
-    sculk::Logger::wait();
-}
+void resetLogger() { sculk::Logger::wait(); }
 
 int runDestructorFlushTest(const fs::path& directory) {
     resetLogger();
     const auto path = directory / "destructor-flush.log";
     std::ofstream{path, std::ios::trunc}.close();
 
-    sculk::Logger::setFile(path);
-    {
-        sculk::Logger("ProxyPass").info("first message").error("second message");
-    }
+    { sculk::Logger("ProxyPass", path).info("first message").error("second message"); }
 
     sculk::Logger::wait();
     if (!waitForLineCount(path, 2)) {
@@ -133,22 +126,20 @@ int runDestructorFlushTest(const fs::path& directory) {
     return 0;
 }
 
-int runSetFileSwitchTest(const fs::path& directory) {
+int runFileSwitchTest(const fs::path& directory) {
     resetLogger();
     const auto firstPath  = directory / "switch-a.log";
     const auto secondPath = directory / "switch-b.log";
     std::ofstream{firstPath, std::ios::trunc}.close();
     std::ofstream{secondPath, std::ios::trunc}.close();
 
-    sculk::Logger::setFile(firstPath);
-    sculk::Logger("ProxyPass").info("message in first file");
+    sculk::Logger("ProxyPass", firstPath).info("message in first file");
     sculk::Logger::wait();
     if (!waitForLineCount(firstPath, 1)) {
         return 6;
     }
 
-    sculk::Logger::setFile(secondPath);
-    sculk::Logger("ProxyPass").warn("message in second file");
+    sculk::Logger("ProxyPass", secondPath).warn("message in second file");
     sculk::Logger::wait();
     if (!waitForLineCount(secondPath, 1)) {
         return 7;
@@ -165,7 +156,8 @@ int runSetFileSwitchTest(const fs::path& directory) {
     if (!secondLines[0].contains("[Warn] [ProxyPass] message in second file")) {
         return 10;
     }
-    if (countContaining(firstLines, "message in second file") != 0 || countContaining(secondLines, "message in first file") != 0) {
+    if (countContaining(firstLines, "message in second file") != 0
+        || countContaining(secondLines, "message in first file") != 0) {
         return 11;
     }
     return 0;
@@ -175,13 +167,12 @@ int runMultithreadTest(const fs::path& directory) {
     resetLogger();
     const auto path = directory / "multithread.log";
     std::ofstream{path, std::ios::trunc}.close();
-    sculk::Logger::setFile(path);
 
-    constexpr int                       threadCount  = 6;
-    constexpr int                       messageCount = 25;
-    constexpr int                       totalCount   = threadCount * messageCount;
+    constexpr int                                     threadCount  = 6;
+    constexpr int                                     messageCount = 25;
+    constexpr int                                     totalCount   = threadCount * messageCount;
     std::array<std::vector<std::string>, threadCount> expectedMessages{};
-    std::vector<std::jthread>           workers{};
+    std::vector<std::jthread>                         workers{};
     workers.reserve(threadCount);
 
     for (int threadIndex = 0; threadIndex < threadCount; ++threadIndex) {
@@ -192,9 +183,9 @@ int runMultithreadTest(const fs::path& directory) {
     }
 
     for (int threadIndex = 0; threadIndex < threadCount; ++threadIndex) {
-        workers.emplace_back([threadIndex, &expectedMessages] {
+        workers.emplace_back([threadIndex, &expectedMessages, path] {
             for (const auto& message : expectedMessages[threadIndex]) {
-                sculk::Logger("ProxyPass").info("{}", message);
+                sculk::Logger("ProxyPass", path).info("{}", message);
             }
         });
     }
@@ -213,7 +204,8 @@ int runMultithreadTest(const fs::path& directory) {
         for (std::size_t index = 0; index < previewCount; ++index) {
             std::cerr << "head[" << index << "]: " << lines[index] << "\n";
         }
-        for (std::size_t index = lines.size() > previewCount ? lines.size() - previewCount : 0; index < lines.size(); ++index) {
+        for (std::size_t index = lines.size() > previewCount ? lines.size() - previewCount : 0; index < lines.size();
+             ++index) {
             std::cerr << "tail[" << index << "]: " << lines[index] << "\n";
         }
         return 13;
@@ -240,7 +232,9 @@ int runMultithreadTest(const fs::path& directory) {
                 for (std::size_t index = 0; index < previewCount; ++index) {
                     std::cerr << "head[" << index << "]: " << lines[index] << "\n";
                 }
-                for (std::size_t index = lines.size() > previewCount ? lines.size() - previewCount : 0; index < lines.size(); ++index) {
+                for (std::size_t index = lines.size() > previewCount ? lines.size() - previewCount : 0;
+                     index < lines.size();
+                     ++index) {
                     std::cerr << "tail[" << index << "]: " << lines[index] << "\n";
                 }
                 return 15;
@@ -250,22 +244,84 @@ int runMultithreadTest(const fs::path& directory) {
     return 0;
 }
 
+int runFileControlTest(const fs::path& directory) {
+    resetLogger();
+    const auto path = directory / "file-control.log";
+    {
+        std::ofstream file{path, std::ios::trunc};
+        file << "existing line\n";
+    }
+
+    {
+        auto logger = sculk::Logger("ProxyPass", path);
+        logger.info("before flush");
+        logger.flushFile();
+        sculk::Logger::wait();
+        if (readLines(path).size() != 2) {
+            return 18;
+        }
+
+        logger.info("before close");
+        logger.closeFile();
+    }
+
+    sculk::Logger::wait();
+    if (!waitForLineCount(path, 3)) {
+        return 19;
+    }
+
+    sculk::Logger("ProxyPass", path).info("after reopen");
+    sculk::Logger::wait();
+    if (!waitForLineCount(path, 4)) {
+        return 20;
+    }
+
+    const auto lines = readLines(path);
+    if (lines[0] != "existing line") {
+        return 21;
+    }
+    if (!lines[1].contains("[Info] [ProxyPass] before flush")) {
+        return 22;
+    }
+    if (!lines[2].contains("[Info] [ProxyPass] before close")) {
+        return 23;
+    }
+    if (!lines[3].contains("[Info] [ProxyPass] after reopen")) {
+        return 24;
+    }
+    return 0;
+}
+
 } // namespace
 
 int main() {
-    const auto directory = fs::temp_directory_path() / "proxypass-logger-tests";
-    fs::create_directories(directory);
+    std::error_code error{};
+    const auto      tempDirectory = fs::temp_directory_path(error);
+    if (error) {
+        std::cerr << "temp-directory-error: " << error.message() << "\n";
+        return 16;
+    }
+
+    const auto directory = tempDirectory / "proxypass-logger-tests";
+    fs::create_directories(directory, error);
+    if (error) {
+        std::cerr << "create-directory-error: " << error.message() << "\n";
+        return 17;
+    }
 
     if (const auto result = runDestructorFlushTest(directory); result != 0) {
         return result;
     }
-    if (const auto result = runSetFileSwitchTest(directory); result != 0) {
+    if (const auto result = runFileSwitchTest(directory); result != 0) {
         return result;
     }
     if (const auto result = runMultithreadTest(directory); result != 0) {
         return result;
     }
+    if (const auto result = runFileControlTest(directory); result != 0) {
+        return result;
+    }
 
-    sculk::Logger::setFile({});
+    sculk::Logger::wait();
     return 0;
 }
