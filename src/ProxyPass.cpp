@@ -357,13 +357,6 @@ void ProxyPass::handleFirstClientPacket(
     std::shared_ptr<ProxyBridge> bridge{};
     auto [bridgePtr, inserted] = mBridges.try_emplace_p(guid.g, std::make_shared<ProxyBridge>(guid, address, session));
     bridge                     = bridgePtr->second;
-    if (!bridge->init()) {
-        getLogger().error(
-            "Failed to initialize proxy bridge for player: {}.",
-            bridge->mConnectionRequest.getXboxLiveName()
-        );
-        return disconnectClient(guid, "Failed to initialize proxy bridge", protocol::DisconnectFailReason::Unknown);
-    }
 
     std::weak_ptr<ProxyBridge> weakBridge = bridge;
 
@@ -437,6 +430,14 @@ void ProxyPass::handleFirstClientPacket(
         })) [[unlikely]] {
         getLogger().error("Failed to set upstream connection failure callback.");
         return;
+    }
+
+    if (!bridge->init()) {
+        getLogger().error(
+            "Failed to initialize proxy bridge for player: {}.",
+            bridge->mConnectionRequest.getXboxLiveName()
+        );
+        return disconnectClient(guid, "Failed to initialize proxy bridge", protocol::DisconnectFailReason::Unknown);
     }
 
     if (bridge->mProxyClient.connect(mSettings.upstream_host, mSettings.upstream_port)
