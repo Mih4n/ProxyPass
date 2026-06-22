@@ -111,7 +111,7 @@ void ensureParentDirectory(const std::filesystem::path& filePath) {
 
 void writeLogTask(const LogTask& task) {
     static auto zone = std::chrono::current_zone();
-    const auto  now  = std::chrono::zoned_time{zone, std::chrono::floor<std::chrono::seconds>(task.mTimestamp)};
+    const auto  now  = std::chrono::zoned_time{zone, std::chrono::floor<std::chrono::milliseconds>(task.mTimestamp)};
     writeConsole(std::format("{:%Y-%m-%d %H:%M:%S}", now), task.mModuleName, task.mLevel, task.mMessage);
     if (task.mLogFile) {
         *task.mLogFile << std::format(

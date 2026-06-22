@@ -33,12 +33,12 @@
 namespace sculk {
 
 class ProxyPass {
-    protocol::ServerNetworkSystem                                                mProxyServer{};
-    Logger                                                                       mLogger{};
-    phmap::parallel_flat_hash_map_m<std::uint64_t, std::shared_ptr<ProxyBridge>> mBridges{};
-    ProxySettings                                                                mSettings{};
-    protocol::AuthenticationKeyManager                                           mAuthManager{};
-    protocol::PemKeyPair                                                         mProxyServerKeyPair{};
+    protocol::ServerNetworkSystem                                                     mProxyServer{};
+    Logger                                                                            mLogger{};
+    phmap::parallel_flat_hash_map_m<RakNet::RakNetGUID, std::shared_ptr<ProxyBridge>> mBridges{};
+    ProxySettings                                                                     mSettings{};
+    protocol::AuthenticationKeyManager                                                mAuthManager{};
+    protocol::PemKeyPair                                                              mProxyServerKeyPair{};
 
 public:
     ProxyPass();
@@ -47,6 +47,10 @@ public:
     Logger& getLogger();
 
     bool start();
+
+    void shutdown();
+
+    void waitForStop();
 
     static void initConsole();
 

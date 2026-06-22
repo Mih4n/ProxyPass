@@ -132,8 +132,6 @@ bool ProxyPass::start() {
         return false;
     }
 
-    std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-
     getLogger().info("IPv4 supported, port: {}", mSettings.proxy_port);
     getLogger().info("IPv6 supported, port: {}", mSettings.proxy_port_v6);
 
@@ -146,6 +144,8 @@ bool ProxyPass::start() {
     } else {
         mAuthManager.initMojangPublicKeyFromCachedKeys();
     }
+
+    std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 
     getLogger().info(
         "Proxy server started in {:.2f} seconds.",
@@ -160,7 +160,7 @@ void ProxyPass::disconnectClient(const RakNet::RakNetGUID& guid, protocol::PlayS
     mProxyServer.disconnectClient(guid);
 
     std::shared_ptr<ProxyBridge> bridge{};
-    mBridges.erase_if(guid.g, [&bridge](auto& entry) {
+    mBridges.erase_if(guid, [&bridge](auto& entry) {
         bridge = entry.second;
         return true;
     });
@@ -187,7 +187,7 @@ void ProxyPass::disconnectClient(
     mProxyServer.disconnectClient(guid);
 
     std::shared_ptr<ProxyBridge> bridge{};
-    mBridges.erase_if(guid.g, [&bridge](auto& entry) {
+    mBridges.erase_if(guid, [&bridge](auto& entry) {
         bridge = entry.second;
         return true;
     });
@@ -199,7 +199,7 @@ void ProxyPass::disconnectClient(
 
 void ProxyPass::onClientDisconnected(const RakNet::RakNetGUID& guid) {
     std::shared_ptr<ProxyBridge> bridge{};
-    mBridges.erase_if(guid.g, [&bridge](auto& entry) {
+    mBridges.erase_if(guid, [&bridge](auto& entry) {
         bridge = entry.second;
         return true;
     });
@@ -355,7 +355,7 @@ void ProxyPass::handleFirstClientPacket(
     }
 
     std::shared_ptr<ProxyBridge> bridge{};
-    auto [bridgePtr, inserted] = mBridges.try_emplace_p(guid.g, std::make_shared<ProxyBridge>(guid, address, session));
+    auto [bridgePtr, inserted] = mBridges.try_emplace_p(guid, std::make_shared<ProxyBridge>(guid, address, session));
     bridge                     = bridgePtr->second;
 
     std::weak_ptr<ProxyBridge> weakBridge = bridge;
@@ -471,7 +471,7 @@ void ProxyPass::onRealClientPacket(
     }
 
     std::shared_ptr<ProxyBridge> bridge{};
-    if (!mBridges.if_contains(guid.g, [&bridge](auto const& entry) { bridge = entry.second; })) {
+    if (!mBridges.if_contains(guid, [&bridge](auto const& entry) { bridge = entry.second; })) {
         return handleFirstClientPacket(guid, address, packet, *session);
     }
 
@@ -561,6 +561,39 @@ void ProxyPass::handleServer(ProxyBridge& bridge, const protocol::ServerToClient
     if (PROXY_PASS_SHOULD_LOG_PACKET(protocol::MinecraftPacketIds::ClientToServerHandshake)) {
         getLogger().info("Proxy => Server | {}", handshakePacket);
     }
+}
+
+void ProxyPass::shutdown() {
+    getLogger().info("Shutting down proxy server...");
+    for (auto& [_, bridge] : mBridges) {
+        if (bridge->mProxyClient.isConnected()) {
+            protocol::DisconnectPacket disconnectPacket{};
+            disconnectPacket.mReason  = protocol::DisconnectFailReason::Kicked;
+            disconnectPacket.mMessage = "Proxy server is shutting down";
+            protocol::Session::Buffer buffer{};
+            protocol::BinaryStream    stream{buffer};
+            disconnectPacket.writeWithHeader(stream);
+            bridge->sendPacketToClient(disconnectPacket, true);
+        }
+    }
+    mBridges.clear();
+    mProxyServer.stop();
+}
+
+void ProxyPass::waitForStop() {
+    std::string command{};
+    while (true) {
+        std::cin >> command;
+        if (command == "stop") {
+            shutdown();
+            break;
+        }
+        getLogger().error(
+            "Unknown command: {}. Please check that the command exists and that you have permission to use it.",
+            command
+        );
+    }
+    getLogger().info("Proxy server stopped.");
 }
 
 } // namespace sculk

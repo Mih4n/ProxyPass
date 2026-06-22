@@ -16,26 +16,15 @@
 
 #include "Logger.hpp"
 #include "ProxyPass.hpp"
-#include <chrono>
-#include <thread>
 
 int main() {
     sculk::ProxyPass::initConsole();
-
-    std::mutex              waitMutex{};
-    std::condition_variable waitCv{};
-    bool                    stopped{false};
-
     auto proxyPass = sculk::ProxyPass();
     if (!proxyPass.start()) {
         std::this_thread::sleep_for(std::chrono::seconds(5));
         return 1;
     }
-
-    std::unique_lock waitLock{waitMutex};
-    waitCv.wait(waitLock, [&] { return stopped; });
-
-    proxyPass.getLogger().info("Stopping proxy server...");
-
+    proxyPass.waitForStop();
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     return 0;
 }
