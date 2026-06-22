@@ -16,27 +16,65 @@
 
 #include "ProxyPass.hpp"
 #include "Logger.hpp"
+#include <iostream>
+#include <print>
 #include <sculk/protocol/codec/MinecraftPackets.hpp>
 #include <sculk/protocol/codec/packet/ClientToServerHandshakePacket.hpp>
 #include <sculk/protocol/codec/packet/DisconnectPacket.hpp>
 #include <sculk/protocol/codec/packet/PlayStatusPacket.hpp>
 #include <sculk/protocol/connection/HandShakeToken.hpp>
 
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 namespace sculk {
+
+void ProxyPass::initConsole() {
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hStdout != INVALID_HANDLE_VALUE) {
+        DWORD dwMode = 0;
+        if (GetConsoleMode(hStdout, &dwMode)) {
+            SetConsoleMode(hStdout, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        }
+    }
+
+    HANDLE hStderr = GetStdHandle(STD_ERROR_HANDLE);
+    if (hStderr != INVALID_HANDLE_VALUE) {
+        DWORD dwMode = 0;
+        if (GetConsoleMode(hStderr, &dwMode)) {
+            SetConsoleMode(hStderr, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        }
+    }
+#endif
+    std::ios::sync_with_stdio(false);
+    std::print("\033]0;ProxyPass\007");
+}
 
 #define PROXY_PASS_SHOULD_LOG_PACKET(ID)                                                                               \
     (mSettings.packets_logger->black_list_mode && !mSettings.packets_logger->packet_ids->contains(ID))                 \
         || (!mSettings.packets_logger->black_list_mode && mSettings.packets_logger->packet_ids->contains(ID))
 
-ProxyPass::ProxyPass(protocol::AuthenticationKeyManager const& authManager, ProxySettings& settings, Logger& logger)
-: mProxyServer(1),
-  mAuthManager(authManager),
-  mSettings(settings),
-  mLogger(logger) {}
+ProxyPass::ProxyPass() : mProxyServer(1), mLogger("ProxyPass") {}
+
+ProxyPass::~ProxyPass() { mSettings.save(); }
+
+Logger& ProxyPass::getLogger() { return mLogger; }
 
 bool ProxyPass::start() {
+    getLogger().info("Starting proxy server...");
+    std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+
+    getLogger()
+        .info("Version: {}(ProtocolVersion {})", protocol::getMinecraftVersion(), protocol::getProtocolVersion());
+
+    mSettings.load();
+
     auto serverKeyPair = protocol::ssl::randomES384KeyPair();
     if (!serverKeyPair) {
+        getLogger().fatal("Failed to generate server key pair: {}", serverKeyPair.error().message());
         return false;
     }
     mProxyServerKeyPair = *serverKeyPair;
@@ -44,7 +82,7 @@ bool ProxyPass::start() {
     if (!mProxyServer.setOnDisconnected([this](const RakNet::RakNetGUID& guid, const RakNet::SystemAddress&) noexcept {
             onClientDisconnected(guid);
         })) [[unlikely]] {
-        getLogger().error("Failed to set proxy server disconnect callback.");
+        getLogger().fatal("Failed to set proxy server disconnect callback.");
         return false;
     }
 
@@ -53,7 +91,7 @@ bool ProxyPass::start() {
                                              const RakNet::SystemAddress&         address,
                                              std::unique_ptr<protocol::IPacket>&& packet
                                          ) noexcept { onRealClientPacket(guid, address, *packet); })) [[unlikely]] {
-        getLogger().error("Failed to set proxy server packet receive callback.");
+        getLogger().fatal("Failed to set proxy server packet receive callback.");
         return false;
     }
 
@@ -66,13 +104,54 @@ bool ProxyPass::start() {
                                                  ) noexcept {
                 getLogger().error("Failed to parse packet: {}", message);
             })) [[unlikely]] {
-            getLogger().error("Failed to set proxy server packet parse failure callback.");
+            getLogger().fatal("Failed to set proxy server packet parse failure callback.");
             return false;
         }
     }
 
     mProxyServer.setMotd(mSettings.motd);
-    return mProxyServer.start(mSettings.proxy_port, mSettings.proxy_port_v6, mSettings.max_players);
+    auto startResult = mProxyServer.start(mSettings.proxy_port, mSettings.proxy_port_v6, mSettings.max_players);
+    if (startResult != protocol::NetworkStartResult::Success) [[unlikely]] {
+        getLogger().fatal("Failed to start proxy server.");
+        if (startResult == protocol::NetworkStartResult::SocketPortAlreadyInUse) {
+            getLogger().fatal(
+                "Port [{}] may be in use by another process. Free up port and re-run program or adjust "
+                "proxy_settings.jsonc file to use alternate ports for proxy server",
+                mSettings.proxy_port
+            );
+            getLogger().fatal(
+                "Port [{}] may be in use by another process. Free up port and re-run program or adjust "
+                "proxy_settings.jsonc file to use alternate ports for proxy server",
+                mSettings.proxy_port_v6
+            );
+        }
+        getLogger().fatal(
+            "Exiting program with error code {}.",
+            static_cast<std::underlying_type_t<protocol::NetworkStartResult>>(startResult)
+        );
+        return false;
+    }
+
+    std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+
+    getLogger().info("IPv4 supported, port: {}", mSettings.proxy_port);
+    getLogger().info("IPv6 supported, port: {}", mSettings.proxy_port_v6);
+
+    if (mSettings.online_mode) {
+        getLogger().info("Waiting for Minecraft services...");
+        if (auto status = mAuthManager.initMojangPublicKeyFromNetwork(); !status) {
+            getLogger().fatal("Failed to connect to Minecraft services: {}", status.error().message());
+            return false;
+        }
+    } else {
+        mAuthManager.initMojangPublicKeyFromCachedKeys();
+    }
+
+    getLogger().info(
+        "Proxy server started in {:.2f} seconds.",
+        std::chrono::duration<double>(endTime - startTime).count()
+    );
+    return true;
 }
 
 void ProxyPass::disconnectClient(const RakNet::RakNetGUID& guid, protocol::PlayStatus status) {
@@ -278,6 +357,13 @@ void ProxyPass::handleFirstClientPacket(
     std::shared_ptr<ProxyBridge> bridge{};
     auto [bridgePtr, inserted] = mBridges.try_emplace_p(guid.g, std::make_shared<ProxyBridge>(guid, address, session));
     bridge                     = bridgePtr->second;
+    if (!bridge->init()) {
+        getLogger().error(
+            "Failed to initialize proxy bridge for player: {}.",
+            bridge->mConnectionRequest.getXboxLiveName()
+        );
+        return disconnectClient(guid, "Failed to initialize proxy bridge", protocol::DisconnectFailReason::Unknown);
+    }
 
     std::weak_ptr<ProxyBridge> weakBridge = bridge;
 
@@ -353,7 +439,8 @@ void ProxyPass::handleFirstClientPacket(
         return;
     }
 
-    if (!bridge->mProxyClient.connect(mSettings.upstream_host, mSettings.upstream_port)) {
+    if (bridge->mProxyClient.connect(mSettings.upstream_host, mSettings.upstream_port)
+        != protocol::ClientNetworkSystem::ConnectionResult::ConnectionAttemptStarted) [[unlikely]] {
         getLogger().info(
             "Failed to connect to upstream server for player: {}.",
             bridge->mConnectionRequest.getXboxLiveName()

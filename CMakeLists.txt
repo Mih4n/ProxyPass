@@ -29,7 +29,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 include(FetchContent)
 set(PROTOCOL_ENABLE_FORMATTING ON CACHE BOOL "Enable formatting support in Protocol")
-set(PROTOCOL_ENABLE_EXCEPTIONS OFF CACHE BOOL "Disable exceptions in Protocol")
+set(PROTOCOL_ENABLE_DETAIL_ERRORS ON CACHE BOOL "Enable detail errors in Protocol")
 FetchContent_Declare(
 	Protocol
 	GIT_REPOSITORY https://github.com/SculkCatalystMC/Protocol.git
@@ -85,7 +85,6 @@ if(MSVC)
 		"${CMAKE_CURRENT_SOURCE_DIR}/src/Version.rc"
 	)
 
-	string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 	string(REPLACE "/Ob2" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 	string(REPLACE "/Ob2" "" CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL}")
 
@@ -95,7 +94,6 @@ if(MSVC)
 		/GR-
 		/Zc:preprocessor
 		/permissive-
-		/EHs-c-
 		$<$<CONFIG:Release>:/O2>
 		$<$<CONFIG:Release>:/Ob3>
 		$<$<CONFIG:MinSizeRel>:/O2>
@@ -104,7 +102,6 @@ if(MSVC)
 	target_compile_definitions(${PROJECT_NAME} PRIVATE
 		UNICODE
 		NOMINMAX
-		_HAS_EXCEPTIONS=0
 	)
 else()
 	target_compile_options(${PROJECT_NAME} PRIVATE
@@ -112,7 +109,6 @@ else()
 		-Wextra
 		-Wpedantic
 		-fno-rtti
-		-fno-exceptions
 		-static
 		-static-libgcc
 		-static-libstdc++

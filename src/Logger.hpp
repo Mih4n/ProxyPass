@@ -35,7 +35,7 @@ public:
     };
 
 public:
-    explicit Logger(std::string_view moduleName);
+    explicit Logger(std::string_view moduleName = "");
     ~Logger();
 
     Logger(const Logger&)            = delete;

@@ -29,11 +29,9 @@ ProxyBridge::ProxyBridge(
   mRealClientSession(realClientSession),
   mClientReady(false) {}
 
-ProxyBridge::~ProxyBridge() {
-    if (mProxyClient.isConnected()) {
-        mProxyClient.disconnect();
-    }
-}
+ProxyBridge::~ProxyBridge() {}
+
+bool ProxyBridge::init() { return mProxyClient.start() == protocol::NetworkStartResult::Success; }
 
 bool ProxyBridge::sendPacketToClient(const protocol::IPacket& packet, bool immediate) {
     protocol::Session::Buffer buffer{};

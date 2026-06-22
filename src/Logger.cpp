@@ -57,17 +57,17 @@ void writeConsole(
 ) {
     switch (level) {
     case Logger::LogLevel::Trace:
-        return WRITE_LOG(RGB_COLOR(0, 102, 51) "[{}] [TRACE] [{}] {}");
+        return WRITE_LOG(RGB_COLOR(0, 102, 51) "[{}] TRACE [{}] {}");
     case Logger::LogLevel::Debug:
-        return WRITE_LOG(RGB_COLOR(128, 128, 128) "[{}] [DEBUG] [{}] {}");
+        return WRITE_LOG(RGB_COLOR(128, 128, 128) "[{}] DEBUG [{}] {}");
     case Logger::LogLevel::Warn:
-        return WRITE_LOG(RGB_COLOR(255, 255, 0) "[{}] [WARN] [{}] {}");
+        return WRITE_LOG(RGB_COLOR(255, 255, 0) "[{}] WARN [{}] {}");
     case Logger::LogLevel::Error:
-        return WRITE_LOG(RGB_COLOR(224, 16, 0) "[{}] [ERROR] [{}] {}");
+        return WRITE_LOG(RGB_COLOR(224, 16, 0) "[{}] ERROR [{}] {}");
     case Logger::LogLevel::Fatal:
-        return WRITE_LOG(RGB_COLOR(255, 0, 0) "[{}] [FATAL] [{}] {}");
+        return WRITE_LOG(RGB_COLOR(255, 0, 0) "[{}] FATAL [{}] {}");
     default:
-        return WRITE_LOG(RGB_COLOR(153, 255, 255) "[{}] " RGB_COLOR(0, 255, 255) "[INFO]" RGB_RESET " [{}] {}");
+        return WRITE_LOG(RGB_COLOR(153, 255, 255) "[{}] " RGB_COLOR(0, 255, 255) "INFO" RGB_RESET " [{}] {}");
     }
 }
 

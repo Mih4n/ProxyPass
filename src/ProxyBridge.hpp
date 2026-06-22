@@ -47,6 +47,8 @@ public:
 
     ~ProxyBridge();
 
+    bool init();
+
     bool sendPacketToClient(const protocol::IPacket& packet, bool immediate = false);
 
     bool sendPacketToServer(const protocol::IPacket& packet, bool immediate = false);
