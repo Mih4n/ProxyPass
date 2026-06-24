@@ -19,13 +19,14 @@
 namespace sculk {
 
 ProxyBridge::ProxyBridge(
-    const RakNet::RakNetGUID&    guid,
-    const RakNet::SystemAddress& address,
-    protocol::Session&           realClientSession
+    const RakNet::RakNetGUID&     guid,
+    const RakNet::SystemAddress&  address,
+    protocol::Session&            realClientSession,
+    protocol::thread::ThreadPool& threadPool
 ) noexcept
 : mRealGuid(guid),
   mRealAddress(address),
-  mProxyClient(1),
+  mProxyClient(threadPool),
   mRealClientSession(realClientSession),
   mClientReady(false) {}
 
@@ -44,16 +45,17 @@ bool ProxyBridge::sendPacketToClient(const protocol::IPacket& packet, bool immed
 }
 
 bool ProxyBridge::sendPacketToServer(const protocol::IPacket& packet, bool immediate) {
-    if (!mProxyClient.isConnected()) {
+    auto session = mProxyClient.getSession().lock();
+    if (!session) {
         return false;
     }
     protocol::Session::Buffer buffer{};
     protocol::BinaryStream    stream{buffer};
     packet.writeWithHeader(stream);
     if (immediate) {
-        return mProxyClient.getSession().sendPacketImmediately(std::move(buffer));
+        return session->sendPacketImmediately(std::move(buffer));
     }
-    return mProxyClient.getSession().sendPacket(std::move(buffer));
+    return session->sendPacket(std::move(buffer));
 }
 
 } // namespace sculk

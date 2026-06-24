@@ -27,18 +27,18 @@
 #include <sculk/protocol/codec/packet/RequestNetworkSettingsPacket.hpp>
 #include <sculk/protocol/codec/packet/ServerToClientHandshakePacket.hpp>
 #include <sculk/protocol/connection/ServerNetworkSystem.hpp>
-#include <sculk/protocol/connection/io/ClientIoRuntime.hpp>
 #include <sculk/protocol/connection/thread/ThreadPool.hpp>
 
 namespace sculk {
 
 class ProxyPass {
-    protocol::ServerNetworkSystem                                                     mProxyServer{};
     Logger                                                                            mLogger{};
     phmap::parallel_flat_hash_map_m<RakNet::RakNetGUID, std::shared_ptr<ProxyBridge>> mBridges{};
     ProxySettings                                                                     mSettings{};
     protocol::AuthenticationKeyManager                                                mAuthManager{};
     protocol::PemKeyPair                                                              mProxyServerKeyPair{};
+    std::unique_ptr<protocol::thread::ThreadPool>                                     mThreadPool{};
+    std::unique_ptr<protocol::ServerNetworkSystem>                                    mProxyServer{};
 
 public:
     ProxyPass();

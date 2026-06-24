@@ -33,6 +33,16 @@ namespace sculk {
 
 struct ProxySettings {
     CONFIG(
+        std::uint32_t,
+        max_threads = 4,
+        COMMENT(
+            "Maximum number of threads for the proxy server's thread pool",
+            "Setting to 0 will use the system default number of threads",
+            "代理服务器的代理池可以使用的最大线程数",
+            "设置为 0 时将使用系统默认线程数"
+        )
+    );
+    CONFIG(
         std::string,
         motd = "A Minecraft Proxy Server",
         COMMENT("Proxy server MOTD displayed.", "展示的代理服务器 MOTD")

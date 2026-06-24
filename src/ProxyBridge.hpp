@@ -36,13 +36,14 @@ public:
     protocol::Session&            mRealClientSession;
     protocol::ConnectionRequest   mConnectionRequest{};
     ClientInfo                    mClientInfo{};
-    std::atomic_bool              mClientReady{false};
+    std::atomic_bool              mClientReady{};
 
 public:
     explicit ProxyBridge(
-        const RakNet::RakNetGUID&    guid,
-        const RakNet::SystemAddress& address,
-        protocol::Session&           realClientSession
+        const RakNet::RakNetGUID&     guid,
+        const RakNet::SystemAddress&  address,
+        protocol::Session&            realClientSession,
+        protocol::thread::ThreadPool& threadPool
     ) noexcept;
 
     ~ProxyBridge();
