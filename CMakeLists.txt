@@ -17,7 +17,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
-	set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0" CACHE STRING "Minimum macOS deployment target")
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3" CACHE STRING "Minimum MacOS deployment target")
 endif()
 
 project(ProxyPass LANGUAGES CXX)
