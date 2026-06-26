@@ -23,16 +23,21 @@
 
 namespace sculk {
 
-#define COMMENT(...)                  __VA_ARGS__
-#define CONFIG(TYPE, FIELD, COMMENTS) reflection::annotated<TYPE, COMMENTS> FIELD
-#define CONFIG_STRUCT(FIELD, COMMENTS, ...)                                                                            \
+#define _STRUCT_TYPE_IMPL(FIELD, ...)                                                                                  \
     struct AnonymousType_##FIELD {                                                                                     \
         __VA_ARGS__                                                                                                    \
-    };                                                                                                                 \
-    reflection::annotated<AnonymousType_##FIELD, COMMENTS> FIELD;
+    }
+
+#define COMMENT(...) __VA_ARGS__
+#define FILEDS(...)  __VA_ARGS__
+
+#define FILED(TYPE, NAME, ...) __VA_OPT__(reflection::annotated <) TYPE __VA_OPT__(, ) __VA_ARGS__ __VA_OPT__(>) NAME
+#define STRUCT(TYPES, NAME, ...)                                                                                       \
+    _STRUCT_TYPE_IMPL(NAME, TYPES);                                                                                    \
+    FILED(AnonymousType_##NAME, NAME, __VA_ARGS__);
 
 struct ProxySettings {
-    CONFIG(
+    FILED(
         std::uint32_t,
         max_threads = 4,
         COMMENT(
@@ -42,19 +47,19 @@ struct ProxySettings {
             "设置为 0 时将使用系统默认线程数"
         )
     );
-    CONFIG(
+    FILED(
         std::string,
         motd = "A Minecraft Proxy Server",
         COMMENT("Proxy server MOTD displayed.", "展示的代理服务器 MOTD")
     );
-    CONFIG(std::uint16_t, proxy_port = 19132, COMMENT("Proxy server IPv4 port", "代理服务器 IPv4 端口"));
-    CONFIG(std::uint16_t, proxy_port_v6 = 19133, COMMENT("Proxy server IPv6 port", "代理服务器 IPv6 端口"));
-    CONFIG(
+    FILED(std::uint16_t, proxy_port = 19132, COMMENT("Proxy server IPv4 port", "代理服务器 IPv4 端口"));
+    FILED(std::uint16_t, proxy_port_v6 = 19133, COMMENT("Proxy server IPv6 port", "代理服务器 IPv6 端口"));
+    FILED(
         bool,
         online_mode = true,
         COMMENT("Whether to enable Xbox Live online authentication", "是否启用 Xbox Live 在线认证")
     );
-    CONFIG(
+    FILED(
         std::string,
         upstream_host = "127.0.0.1",
         COMMENT(
@@ -62,38 +67,41 @@ struct ProxySettings {
             "上游服务器主机地址，通常为 IP 或域名，支持 IPv4 和 IPv6"
         )
     );
-    CONFIG(std::uint16_t, upstream_port = 19134, COMMENT("Upstream server port", "上游服务器端口"));
-    CONFIG(std::uint32_t, max_players = 100, COMMENT("Maximum number of players", "最大玩家数量"));
-    CONFIG_STRUCT(
+    FILED(std::uint16_t, upstream_port = 19134, COMMENT("Upstream server port", "上游服务器端口"));
+    FILED(std::uint32_t, max_players = 100, COMMENT("Maximum number of players", "最大玩家数量"));
+    STRUCT(
+        FILEDS(
+            FILED(
+                bool,
+                log_parse_error = false,
+                COMMENT(
+                    "Whether to log parse errors for packets logger",
+                    "It should not normally occur, this option is usually only used during protocol development and "
+                    "testing.",
+                    "数据包记录是否启用解析错误记录",
+                    "正常情况下不应该发生解析错误，此选项通常仅在协议开发测试使用。"
+                )
+            );
+            FILED(
+                bool,
+                black_list_mode = false,
+                COMMENT("Whether to use black list mode for packets logger", "数据包记录是否启用黑名单模式")
+            );
+            FILED(
+                std::set<protocol::MinecraftPacketIds>,
+                packet_ids = {},
+                COMMENT(
+                    "Packet IDs for the packets logger, can use numeric IDs or protocol packet names "
+                    "(case-insensitive)",
+                    "Under black list mode, it means not logging these packets; under white list mode, it means only "
+                    "logging these packets",
+                    "数据包 ID 列表，可使用数字ID，也可以使用协议包名（不区分大小写）",
+                    "在黑名单模式下表示不记录这些数据包，在白名单模式下表示只记录这些数据包"
+                )
+            );
+        ),
         packets_logger,
-        COMMENT("Settings for packets logger", "数据包记录设置"),
-        CONFIG(
-            bool,
-            log_parse_error = false,
-            COMMENT(
-                "Whether to log parse errors for packets logger",
-                "It should not normally occur, this option is usually only used during protocol development and "
-                "testing.",
-                "数据包记录是否启用解析错误记录",
-                "正常情况下不应该发生解析错误，此选项通常仅在协议开发测试使用。"
-            )
-        );
-        CONFIG(
-            bool,
-            black_list_mode = false,
-            COMMENT("Whether to use black list mode for packets logger", "数据包记录是否启用黑名单模式")
-        );
-        CONFIG(
-            std::set<protocol::MinecraftPacketIds>,
-            packet_ids = {},
-            COMMENT(
-                "Packet IDs for the packets logger, can use numeric IDs or protocol packet names (case-insensitive)",
-                "Under black list mode, it means not logging these packets; under white list mode, it means only "
-                "logging these packets",
-                "数据包 ID 列表，可使用数字ID，也可以使用协议包名（不区分大小写）",
-                "在黑名单模式下表示不记录这些数据包，在白名单模式下表示只记录这些数据包"
-            )
-        );
+        COMMENT("Settings for packets logger", "数据包记录设置")
     );
 
     bool load();

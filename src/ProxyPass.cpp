@@ -106,7 +106,16 @@ bool ProxyPass::start() {
                                                       protocol::MinecraftPacketIds id,
                                                       std::string_view             message
                                                   ) noexcept {
-                getLogger().error("Failed to parse packet {}: {}", magic_enum::enum_name(id), message);
+                if (id != static_cast<protocol::MinecraftPacketIds>(-1)) [[likely]] {
+                    getLogger().error(
+                        "Failed to parse {}Packet({}): {}",
+                        magic_enum::enum_name(id),
+                        std::to_underlying(id),
+                        message
+                    );
+                } else {
+                    getLogger().error("Received invalid packet: {}", message);
+                }
             })) [[unlikely]] {
             getLogger().fatal("Failed to set proxy server packet parse failure callback.");
             return false;
@@ -380,7 +389,16 @@ void ProxyPass::handleFirstClientPacket(
     if (mSettings.packets_logger->log_parse_error) {
         if (!bridge->mProxyClient.setOnPacketParseFailed(
                 [this](protocol::MinecraftPacketIds id, std::string_view message) noexcept {
-                    getLogger().error("Failed to parse packet {}: {}", magic_enum::enum_name(id), message);
+                    if (id != static_cast<protocol::MinecraftPacketIds>(-1)) [[likely]] {
+                        getLogger().error(
+                            "Failed to parse {}Packet({}): {}",
+                            magic_enum::enum_name(id),
+                            std::to_underlying(id),
+                            message
+                        );
+                    } else {
+                        getLogger().error("Received invalid packet: {}", message);
+                    }
                 }
             )) [[unlikely]] {
             getLogger().error("Failed to set upstream packet parse failure callback.");
