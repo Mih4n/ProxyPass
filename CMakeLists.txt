@@ -16,6 +16,10 @@
 
 cmake_minimum_required(VERSION 3.20)
 
+if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0" CACHE STRING "Minimum macOS deployment target")
+endif()
+
 project(ProxyPass LANGUAGES CXX)
 
 enable_testing()
@@ -26,6 +30,7 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL ON)
 
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 
 include(FetchContent)
 set(PROTOCOL_ENABLE_FORMATTING ON CACHE BOOL "Enable formatting support in Protocol")
@@ -109,17 +114,26 @@ else()
 		-Wextra
 		-Wpedantic
 		-fno-rtti
-		-static
-		-static-libgcc
-		-static-libstdc++
 		$<$<CONFIG:Release>:-O3>
 		$<$<CONFIG:RelWithDebInfo>:-O3>
 	)
-	target_link_options(${PROJECT_NAME} PRIVATE
-		-Wl,--no-undefined
-		$<$<NOT:$<CONFIG:Debug>>:-Wl,--exclude-libs,ALL>
-		$<$<NOT:$<CONFIG:Debug>>:-s>
-	)
+
+	if(APPLE)
+		target_link_options(${PROJECT_NAME} PRIVATE
+			$<$<NOT:$<CONFIG:Debug>>:-Wl,-dead_strip>
+		)
+	else()
+		target_compile_options(${PROJECT_NAME} PRIVATE
+			-static
+			-static-libgcc
+			-static-libstdc++
+		)
+		target_link_options(${PROJECT_NAME} PRIVATE
+			-Wl,--no-undefined
+			$<$<NOT:$<CONFIG:Debug>>:-Wl,--exclude-libs,ALL>
+			$<$<NOT:$<CONFIG:Debug>>:-s>
+		)
+	endif()
 endif()
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" FILES ${PROJECT_SOURCES})

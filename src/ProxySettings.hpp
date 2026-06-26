@@ -34,7 +34,7 @@ namespace sculk {
 #define FILED(TYPE, NAME, ...) __VA_OPT__(reflection::annotated <) TYPE __VA_OPT__(, ) __VA_ARGS__ __VA_OPT__(>) NAME
 #define STRUCT(TYPES, NAME, ...)                                                                                       \
     _STRUCT_TYPE_IMPL(NAME, TYPES);                                                                                    \
-    FILED(AnonymousType_##NAME, NAME, __VA_ARGS__);
+    FILED(AnonymousType_##NAME, NAME, __VA_ARGS__)
 
 struct ProxySettings {
     FILED(

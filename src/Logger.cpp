@@ -15,9 +15,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "Logger.hpp"
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <concurrentqueue.h>
+#include <ctime>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -88,6 +90,9 @@ constexpr std::string_view logLevelName(Logger::LogLevel level) {
     }
 }
 
+constexpr std::size_t TIME_STAMP_BUFFER_SIZE = sizeof("YYYY-MM-DD HH:MM:SS");
+constexpr std::size_t TIME_STAMP_TEXT_LENGTH = TIME_STAMP_BUFFER_SIZE - 1;
+
 std::filesystem::path normalizeLogPath(const std::filesystem::path& filePath) {
     std::error_code ec{};
     auto            absolutePath = std::filesystem::absolute(filePath, ec);
@@ -109,14 +114,32 @@ void ensureParentDirectory(const std::filesystem::path& filePath) {
     }
 }
 
+std::array<char, TIME_STAMP_BUFFER_SIZE> formatLocalTimestamp(const std::chrono::system_clock::time_point& timePoint) {
+    const auto time = std::chrono::system_clock::to_time_t(timePoint);
+
+    std::tm localTime{};
+#ifdef _WIN32
+    localtime_s(&localTime, &time);
+#else
+    localtime_r(&time, &localTime);
+#endif
+
+    std::array<char, TIME_STAMP_BUFFER_SIZE> buffer{};
+    if (std::strftime(buffer.data(), buffer.size(), "%Y-%m-%d %H:%M:%S", &localTime) == 0) {
+        return {"1970-01-01 00:00:00"};
+    }
+
+    return buffer;
+}
+
 void writeLogTask(const LogTask& task) {
-    static auto zone = std::chrono::current_zone();
-    const auto  now  = std::chrono::zoned_time{zone, std::chrono::floor<std::chrono::milliseconds>(task.mTimestamp)};
-    writeConsole(std::format("{:%Y-%m-%d %H:%M:%S}", now), task.mModuleName, task.mLevel, task.mMessage);
+    const auto timestamp     = formatLocalTimestamp(task.mTimestamp);
+    const auto timestampView = std::string_view{timestamp.data(), TIME_STAMP_TEXT_LENGTH};
+    writeConsole(timestampView, task.mModuleName, task.mLevel, task.mMessage);
     if (task.mLogFile) {
         *task.mLogFile << std::format(
-            "[{:%Y-%m-%d %H:%M:%S}] [{}] [{}] {}",
-            now,
+            "[{}] [{}] [{}] {}",
+            timestampView,
             task.mModuleName,
             logLevelName(task.mLevel),
             task.mMessage

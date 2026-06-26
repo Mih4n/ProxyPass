@@ -43,7 +43,9 @@ public:
     Logger(Logger&& other) noexcept;
     Logger& operator=(Logger&& other) noexcept;
 
+    // NOT THREAD SAFE
     void setFile(std::filesystem::path filePath);
+    // NOT THREAD SAFE
     void setLevel(LogLevel level) noexcept;
 
     template <class... Args>
