@@ -85,7 +85,7 @@ jobs:
         uses: jwlawson/actions-setup-cmake@v2
 
       - name: Install Dependencies
-        run: apt-get update && apt-get install -y ninja-build cmake
+        run: apt-get update && apt-get install -y ninja-build cmake openssl libssl-dev
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -114,7 +114,7 @@ jobs:
         uses: jwlawson/actions-setup-cmake@v2
 
       - name: Install Dependencies
-        run: apt-get update && apt-get install -y ninja-build cmake
+        run: apt-get update && apt-get install -y ninja-build cmake openssl libssl-dev
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
