@@ -105,12 +105,10 @@ else()
 			$<$<NOT:$<CONFIG:Debug>>:-Wl,-dead_strip>
 		)
 	else()
-		target_compile_options(${PROJECT_NAME} PRIVATE
+		target_link_options(${PROJECT_NAME} PRIVATE
 			-static
 			-static-libgcc
 			-static-libstdc++
-		)
-		target_link_options(${PROJECT_NAME} PRIVATE
 			-Wl,--no-undefined
 			$<$<NOT:$<CONFIG:Debug>>:-Wl,--exclude-libs,ALL>
 			$<$<NOT:$<CONFIG:Debug>>:-s>
