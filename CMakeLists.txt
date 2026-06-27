@@ -22,8 +22,6 @@ endif()
 
 project(ProxyPass LANGUAGES CXX)
 
-enable_testing()
-
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL ON)
@@ -45,18 +43,7 @@ FetchContent_Declare(
 	GIT_REPOSITORY https://github.com/SculkCatalystMC/Reflection.git
 	GIT_TAG main
 )
-FetchContent_Declare(
-	parallel_hashmap
-	GIT_REPOSITORY https://github.com/greg7mdp/parallel-hashmap.git
-	GIT_TAG v2.0.0
-)
-FetchContent_Declare(
-	concurrentqueue
-	GIT_REPOSITORY https://github.com/cameron314/concurrentqueue.git
-	GIT_TAG v1.0.4
-)
-find_package(OpenSSL REQUIRED)
-FetchContent_MakeAvailable(Protocol reflection parallel_hashmap concurrentqueue)
+FetchContent_MakeAvailable(Protocol reflection)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -67,11 +54,6 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
-
-target_include_directories(${PROJECT_NAME} PUBLIC
-	$<BUILD_INTERFACE:${parallel_hashmap_SOURCE_DIR}>
-	$<BUILD_INTERFACE:${concurrentqueue_SOURCE_DIR}>
-)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
 	Protocol::Protocol
