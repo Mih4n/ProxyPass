@@ -17,7 +17,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
-	set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3" CACHE STRING "Minimum MacOS deployment target")
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum MacOS deployment target")
 endif()
 
 project(ProxyPass LANGUAGES CXX)
@@ -32,7 +32,6 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 
 include(FetchContent)
 set(PROTOCOL_ENABLE_FORMATTING ON CACHE BOOL "Enable formatting support in Protocol")
-set(PROTOCOL_ENABLE_DETAIL_ERRORS ON CACHE BOOL "Enable detail errors in Protocol")
 FetchContent_Declare(
 	Protocol
 	GIT_REPOSITORY https://github.com/SculkCatalystMC/Protocol.git

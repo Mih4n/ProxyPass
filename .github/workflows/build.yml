@@ -37,7 +37,7 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ProxyPass-windows-amd64-${{ github.sha }}
           path: bin/ProxyPass*
@@ -65,14 +65,14 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ProxyPass-windows-arm64-${{ github.sha }}
           path: bin/ProxyPass*
           retention-days: 15
 
-  build-on-linux-gnu-x86_64:
-    name: Build on Linux GNU X86_64 (GCC)
+  build-on-linux-x86_64:
+    name: Build on Linux X86_64 (GCC)
     runs-on: ubuntu-24.04
     container:
       image: gcc:15
@@ -94,14 +94,14 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: ProxyPass-linux-gnu-x86_64-${{ github.sha }}
+          name: ProxyPass-linux-x86_64-${{ github.sha }}
           path: bin/ProxyPass*
           retention-days: 15
 
-  build-on-linux-gnu-arm64:
-    name: Build on Linux GNU ARM64 (GCC)
+  build-on-linux-arm64:
+    name: Build on Linux ARM64 (GCC)
     runs-on: ubuntu-24.04-arm
     container:
       image: gcc:15
@@ -123,61 +123,9 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: ProxyPass-linux-gnu-arm64-${{ github.sha }}
-          path: bin/ProxyPass*
-          retention-days: 15
-
-  build-on-linux-musl-x86_64:
-    name: Build on Linux musl X86_64 (Alpine)
-    runs-on: ubuntu-24.04
-    container:
-      image: alpine:3.24.1
-      options: --privileged
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Install Dependencies
-        run: apk add --no-cache build-base cmake ninja git openssl-libs-static
-
-      - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build --config Release --parallel
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ProxyPass-linux-musl-x86_64-${{ github.sha }}
-          path: bin/ProxyPass*
-          retention-days: 15
-
-  build-on-linux-musl-arm64:
-    name: Build on Linux musl ARM64 (Alpine)
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Build in Alpine Container
-        run: |
-          docker run --rm \
-            -v "${GITHUB_WORKSPACE}:/workspace" \
-            -w /workspace \
-            alpine:3.24.1 \
-            sh -lc '
-              apk add --no-cache build-base cmake ninja git openssl-libs-static &&
-              cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release &&
-              cmake --build build --config Release --parallel
-            '
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ProxyPass-linux-musl-arm64-${{ github.sha }}
+          name: ProxyPass-linux-arm64-${{ github.sha }}
           path: bin/ProxyPass*
           retention-days: 15
 
@@ -201,7 +149,7 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ProxyPass-macos-arm64-${{ github.sha }}
           path: bin/ProxyPass*
@@ -227,7 +175,7 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ProxyPass-macos-intel-${{ github.sha }}
           path: bin/ProxyPass*
