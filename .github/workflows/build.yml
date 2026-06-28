@@ -37,7 +37,7 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ProxyPass-windows-amd64-${{ github.sha }}
           path: bin/ProxyPass*
@@ -65,7 +65,7 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ProxyPass-windows-arm64-${{ github.sha }}
           path: bin/ProxyPass*
@@ -94,7 +94,7 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ProxyPass-linux-x86_64-${{ github.sha }}
           path: bin/ProxyPass*
@@ -123,7 +123,7 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ProxyPass-linux-arm64-${{ github.sha }}
           path: bin/ProxyPass*
@@ -149,7 +149,7 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ProxyPass-macos-arm64-${{ github.sha }}
           path: bin/ProxyPass*
@@ -175,7 +175,7 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ProxyPass-macos-intel-${{ github.sha }}
           path: bin/ProxyPass*
