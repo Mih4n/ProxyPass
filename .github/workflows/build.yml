@@ -20,7 +20,7 @@ jobs:
     runs-on: windows-2025-vs2026
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
@@ -48,7 +48,7 @@ jobs:
     runs-on: windows-11-vs2026-arm
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
@@ -79,7 +79,7 @@ jobs:
       options: --privileged
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
@@ -108,7 +108,7 @@ jobs:
       options: --privileged
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
@@ -134,7 +134,7 @@ jobs:
     runs-on: macos-26
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
@@ -160,7 +160,7 @@ jobs:
     runs-on: macos-26-intel
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
