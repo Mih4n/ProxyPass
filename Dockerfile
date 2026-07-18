@@ -30,4 +30,4 @@ COPY --from=builder /app/bin/ProxyPass /app/ProxyPass
 
 EXPOSE 19132/udp
 
-CMD ["/app/ProxyPass"]
+ENTRYPOINT ["/app/ProxyPass"]

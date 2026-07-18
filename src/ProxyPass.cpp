@@ -16,8 +16,12 @@
 
 #include "ProxyPass.hpp"
 #include "Logger.hpp"
+#include <atomic>
+#include <cstdio>
+#include <csignal>
 #include <iostream>
 #include <print>
+#include <thread>
 #include <sculk/protocol/codec/MinecraftPackets.hpp>
 #include <sculk/protocol/codec/packet/ClientToServerHandshakePacket.hpp>
 #include <sculk/protocol/codec/packet/DisconnectPacket.hpp>
@@ -29,6 +33,16 @@
 #endif
 
 namespace sculk {
+
+namespace {
+    std::atomic<ProxyPass*> gProxyPassInstance{nullptr};
+
+    void proxyPassSignalHandler(int /*signum*/) {
+        if (auto* instance = gProxyPassInstance.load(std::memory_order_acquire)) {
+            instance->requestStop();
+        }
+    }
+}
 
 void ProxyPass::initConsole() {
 #ifdef _WIN32
@@ -50,6 +64,8 @@ void ProxyPass::initConsole() {
     }
 #endif
     std::ios::sync_with_stdio(false);
+    setvbuf(stdout, nullptr, _IOLBF, 0);
+    setvbuf(stderr, nullptr, _IOLBF, 0);
     std::print("\033]0;ProxyPass\007");
 }
 
@@ -613,22 +629,40 @@ void ProxyPass::shutdown() {
     mThreadPool.reset();
 }
 
-void ProxyPass::waitForStop() {
-    std::string command{};
-    while (true) {
-        if (!(std::cin >> command)) {
-            break;
-        }
-        if (command == "stop") {
-            shutdown();
-            getLogger().info("Proxy server stopped.");
-            break;
-        }
-        getLogger().error(
-            "Unknown command: {}. Please check that the command exists and that you have permission to use it.",
-            command
-        );
+void ProxyPass::requestStop() {
+    if (!mShouldStop.exchange(true)) {
+        std::lock_guard<std::mutex> lock(mStopMutex);
+        mStopCv.notify_all();
     }
+}
+
+void ProxyPass::waitForStop() {
+    gProxyPassInstance.store(this, std::memory_order_release);
+    std::signal(SIGINT, proxyPassSignalHandler);
+    std::signal(SIGTERM, proxyPassSignalHandler);
+
+    std::thread inputThread([this]() {
+        std::string command{};
+        while (std::cin >> command) {
+            if (command == "stop") {
+                requestStop();
+                break;
+            }
+            getLogger().error(
+                "Unknown command: {}. Please check that the command exists and that you have permission to use it.",
+                command
+            );
+        }
+    });
+    inputThread.detach();
+
+    {
+        std::unique_lock<std::mutex> lock(mStopMutex);
+        mStopCv.wait(lock, [this] { return mShouldStop.load(); });
+    }
+
+    shutdown();
+    getLogger().info("Proxy server stopped.");
 }
 
 } // namespace sculk
