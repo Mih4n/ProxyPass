@@ -17,11 +17,18 @@
 #include "ProxyPass.hpp"
 #include "Logger.hpp"
 #include <atomic>
+#include <climits>
 #include <cstdio>
 #include <csignal>
+#include <filesystem>
 #include <iostream>
 #include <print>
 #include <thread>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <sculk/protocol/codec/MinecraftPackets.hpp>
 #include <sculk/protocol/codec/packet/ClientToServerHandshakePacket.hpp>
 #include <sculk/protocol/codec/packet/DisconnectPacket.hpp>
@@ -42,6 +49,36 @@ namespace {
             instance->requestStop();
         }
     }
+}
+
+void ProxyPass::setWorkingDirectory() {
+    std::filesystem::path exePath;
+#ifdef _WIN32
+    wchar_t buffer[MAX_PATH];
+    if (GetModuleFileNameW(nullptr, buffer, MAX_PATH) != 0) {
+        exePath = buffer;
+    }
+#else
+    char buffer[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+    if (len != -1) {
+        buffer[len] = '\0';
+        exePath = buffer;
+    }
+#endif
+    if (exePath.empty()) {
+        return;
+    }
+
+    auto dir = exePath.parent_path();
+    for (int i = 0; i < 4 && !dir.empty(); ++i) {
+        if (std::filesystem::exists(dir / "proxy_settings.jsonc")) {
+            std::filesystem::current_path(dir);
+            return;
+        }
+        dir = dir.parent_path();
+    }
+    std::filesystem::current_path(exePath.parent_path());
 }
 
 void ProxyPass::initConsole() {
@@ -428,6 +465,13 @@ void ProxyPass::handleFirstClientPacket(
                 return;
             }
 
+            getLogger().info(
+                "Upstream connection to {}:{} established for player: {}.",
+                mSettings.upstream_host,
+                mSettings.upstream_port,
+                currentBridge->mConnectionRequest.getXboxLiveName()
+            );
+
             if (!currentBridge->mClientReady.load(std::memory_order_acquire)) {
                 return;
             }
@@ -451,7 +495,9 @@ void ProxyPass::handleFirstClientPacket(
             }
 
             getLogger().info(
-                "Failed to connect to upstream server for player: {}.",
+                "Upstream connection to {}:{} failed for player: {}.",
+                mSettings.upstream_host,
+                mSettings.upstream_port,
                 currentBridge->mConnectionRequest.getXboxLiveName()
             );
             getLogger().info(
@@ -479,10 +525,17 @@ void ProxyPass::handleFirstClientPacket(
         return disconnectClient(guid, "Failed to initialize proxy bridge", protocol::DisconnectFailReason::Unknown);
     }
 
-    if (bridge->mProxyClient.connect(mSettings.upstream_host, mSettings.upstream_port)
-        != protocol::ClientNetworkSystem::ConnectionResult::ConnectionAttemptStarted) [[unlikely]] {
+    getLogger().info(
+        "Connecting to upstream server at {}:{} for player: {}.",
+        mSettings.upstream_host,
+        mSettings.upstream_port,
+        bridge->mConnectionRequest.getXboxLiveName()
+    );
+    auto connectResult = bridge->mProxyClient.connect(mSettings.upstream_host, mSettings.upstream_port);
+    if (connectResult != protocol::ClientNetworkSystem::ConnectionResult::ConnectionAttemptStarted) [[unlikely]] {
         getLogger().info(
-            "Failed to connect to upstream server for player: {}.",
+            "Failed to start upstream connection (result: {}) for player: {}.",
+            std::to_underlying(connectResult),
             bridge->mConnectionRequest.getXboxLiveName()
         );
         getLogger().info(

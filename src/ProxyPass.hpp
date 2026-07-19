@@ -60,6 +60,8 @@ public:
 
     void waitForStop();
 
+    static void setWorkingDirectory();
+
     static void initConsole();
 
 private:
